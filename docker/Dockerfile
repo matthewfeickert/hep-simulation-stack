@@ -104,3 +104,25 @@ RUN mkdir /code && \
     fi && \
     python -m pip --no-cache-dir install "fastjet~=${FASTJET_VERSION}.0" && \
     rm -rf /code
+
+RUN apt-get -qq -y update && \
+    apt-get -qq -y install \
+        wget && \
+    apt-get -y autoclean && \
+    apt-get -y autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir /code && \
+    cd /code && \
+    export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/include/python3.10/" && \
+    wget https://gitlab.com/hepcedar/rivetbootstrap/raw/3.1.6/rivet-bootstrap && \
+    chmod +x rivet-bootstrap && \
+    INSTALL_PREFIX=/usr/local/venv \
+    INSTALL_BOOST=0 \
+    INSTALL_HEPMC=0 \
+    INSTALL_FASTJET=0 \
+    BOOSTPATH=/usr/local/venv \
+    HEPMCPATH=/usr/local/venv \
+    FASTJETPATH=/usr/local/venv \
+    MAKE="make -j $(nproc --ignore=12)"\
+    ./rivet-bootstrap
