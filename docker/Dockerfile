@@ -77,6 +77,7 @@ RUN mkdir /code && \
 # Install FastJet
 # c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
 ARG FASTJET_VERSION=3.4.0
+ARG FASTJET_CONTRIB_VERSION=1.050
 RUN mkdir /code && \
     cd /code && \
     curl --silent --location --remote-name http://fastjet.fr/repo/fastjet-${FASTJET_VERSION}.tar.gz && \
@@ -102,7 +103,23 @@ RUN mkdir /code && \
         apt-get -y autoremove && \
         rm -rf /var/lib/apt/lists/* ; \
     fi && \
+    cd / && \
+    rm -rf /code && \
+    mkdir -p /code && \
+    cd /code && \
+    curl --silent --location --remote-name http://fastjet.hepforge.org/contrib/downloads/fjcontrib-${FASTJET_CONTRIB_VERSION}.tar.gz && \
+    tar xvfz fjcontrib-${FASTJET_CONTRIB_VERSION}.tar.gz && \
+    cd fjcontrib-${FASTJET_CONTRIB_VERSION} && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    ./configure \
+        --fastjet-config=$(command -v fastjet-config) \
+        --prefix=/usr/local/venv && \
+    make -j$(nproc --ignore=12) && \
+    make check && \
+    make install && \
     python -m pip --no-cache-dir install "fastjet~=${FASTJET_VERSION}.0" && \
+    cd / && \
     rm -rf /code
 
 RUN apt-get -qq -y update && \
