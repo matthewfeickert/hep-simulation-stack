@@ -41,7 +41,7 @@ RUN export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/include/python3.
 ARG HEPMC_VERSION=2.06.11
 RUN mkdir /code && \
     cd /code && \
-    wget http://hepmc.web.cern.ch/hepmc/releases/hepmc${HEPMC_VERSION}.tgz && \
+    curl --silent --location --remote-name http://hepmc.web.cern.ch/hepmc/releases/hepmc${HEPMC_VERSION}.tgz && \
     tar xvfz hepmc${HEPMC_VERSION}.tgz && \
     mv HepMC-${HEPMC_VERSION} src && \
     cmake \
@@ -62,7 +62,7 @@ RUN mkdir /code && \
 ARG LHAPDF_VERSION=6.5.3
 RUN mkdir /code && \
     cd /code && \
-    wget https://lhapdf.hepforge.org/downloads/?f=LHAPDF-${LHAPDF_VERSION}.tar.gz -O LHAPDF-${LHAPDF_VERSION}.tar.gz && \
+    curl --silent --location https://lhapdf.hepforge.org/downloads/?f=LHAPDF-${LHAPDF_VERSION}.tar.gz --output LHAPDF-${LHAPDF_VERSION}.tar.gz && \
     tar xvfz LHAPDF-${LHAPDF_VERSION}.tar.gz && \
     cd LHAPDF-${LHAPDF_VERSION} && \
     ./configure --help && \
@@ -79,7 +79,7 @@ RUN mkdir /code && \
 ARG FASTJET_VERSION=3.4.0
 RUN mkdir /code && \
     cd /code && \
-    wget http://fastjet.fr/repo/fastjet-${FASTJET_VERSION}.tar.gz && \
+    curl --silent --location --remote-name http://fastjet.fr/repo/fastjet-${FASTJET_VERSION}.tar.gz && \
     tar xvfz fastjet-${FASTJET_VERSION}.tar.gz && \
     cd fastjet-${FASTJET_VERSION} && \
     ./configure --help && \
