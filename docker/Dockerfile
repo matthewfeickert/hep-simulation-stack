@@ -114,7 +114,7 @@ RUN apt-get -qq -y update && \
 
 RUN mkdir /code && \
     cd /code && \
-    export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/include/python3.10/" && \
+    export PYTHONPATH="$(dirname $(dirname $(command -v python3)))/lib/python3.10/site-packages:${PYTHONPATH}" && \
     wget https://gitlab.com/hepcedar/rivetbootstrap/raw/3.1.6/rivet-bootstrap && \
     chmod +x rivet-bootstrap && \
     INSTALL_PREFIX=/usr/local/venv \
