@@ -36,3 +36,71 @@ RUN export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/include/python3.
         -j$(nproc --ignore=1) && \
     cd / && \
     rm -rf /code
+
+# Install HepMC
+ARG HEPMC_VERSION=2.06.11
+RUN mkdir /code && \
+    cd /code && \
+    wget http://hepmc.web.cern.ch/hepmc/releases/hepmc${HEPMC_VERSION}.tgz && \
+    tar xvfz hepmc${HEPMC_VERSION}.tgz && \
+    mv HepMC-${HEPMC_VERSION} src && \
+    cmake \
+      -DCMAKE_CXX_COMPILER=$(which g++) \
+      -DCMAKE_BUILD_TYPE=Release \
+      -Dbuild_docs:BOOL=OFF \
+      -Dmomentum:STRING=MEV \
+      -Dlength:STRING=MM \
+      -DCMAKE_INSTALL_PREFIX=/usr/local/venv \
+      -S src \
+      -B build && \
+    cmake build -L && \
+    cmake --build build --parallel $(nproc --ignore=12) && \
+    cmake --build build --target install && \
+    rm -rf /code
+
+# Install LHAPDF
+ARG LHAPDF_VERSION=6.5.3
+RUN mkdir /code && \
+    cd /code && \
+    wget https://lhapdf.hepforge.org/downloads/?f=LHAPDF-${LHAPDF_VERSION}.tar.gz -O LHAPDF-${LHAPDF_VERSION}.tar.gz && \
+    tar xvfz LHAPDF-${LHAPDF_VERSION}.tar.gz && \
+    cd LHAPDF-${LHAPDF_VERSION} && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    export PYTHON=$(which python) && \
+    ./configure \
+      --prefix=/usr/local/venv && \
+    make -j$(nproc --ignore=12) && \
+    make install && \
+    rm -rf /code
+
+# Install FastJet
+# c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
+ARG FASTJET_VERSION=3.4.0
+RUN mkdir /code && \
+    cd /code && \
+    wget http://fastjet.fr/repo/fastjet-${FASTJET_VERSION}.tar.gz && \
+    tar xvfz fastjet-${FASTJET_VERSION}.tar.gz && \
+    cd fastjet-${FASTJET_VERSION} && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    ./configure \
+      --prefix=/usr/local/venv && \
+    make -j$(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    if [[ "${TARGETARCH}" == "arm64" ]]; then \
+        apt-get -qq -y update && \
+        apt-get -qq -y install \
+          libboost-dev \
+          libmpfr-dev \
+          libgmp-dev \
+          swig \
+          autoconf \
+          libtool && \
+        apt-get -y autoclean && \
+        apt-get -y autoremove && \
+        rm -rf /var/lib/apt/lists/* ; \
+    fi && \
+    python -m pip --no-cache-dir install "fastjet~=${FASTJET_VERSION}.0" && \
+    rm -rf /code
