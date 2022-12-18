@@ -146,6 +146,7 @@ RUN mkdir /code && \
     ./configure \
         --prefix=/usr/local/venv && \
     make -j$(nproc --ignore=12) && \
+    make check && \
     make install && \
     cd / && \
     rm -rf /code
