@@ -83,7 +83,8 @@ RUN apt-get -qq -y update && \
 
 COPY requirements.txt /docker/requirements.txt
 
-RUN python -m pip --no-cache-dir install -r /docker/requirements.txt
+RUN python -m pip --no-cache-dir install --upgrade pip setuptools wheel && \
+    python -m pip --no-cache-dir install -r /docker/requirements.txt
 
 # Install FastJet
 # c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
