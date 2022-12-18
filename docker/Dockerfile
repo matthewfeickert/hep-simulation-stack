@@ -86,7 +86,7 @@ RUN mkdir /code && \
     ./configure --help && \
     export CXX=$(which g++) && \
     ./configure \
-      --prefix=/usr/local/venv && \
+        --prefix=/usr/local/venv && \
     make -j$(nproc --ignore=12) && \
     make check && \
     make install && \
