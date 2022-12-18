@@ -128,7 +128,9 @@ RUN mkdir /code && \
     ./configure \
         --fastjet-config=$(command -v fastjet-config) \
         --prefix=/usr/local/venv && \
-    make -j$(nproc --ignore=12) && \
+    make \
+        -j$(nproc --ignore=12) \
+        fragile-shared-install && \
     make check && \
     make install && \
     cd / && \
