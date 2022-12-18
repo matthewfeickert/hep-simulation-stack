@@ -74,6 +74,17 @@ RUN mkdir /code && \
     make install && \
     rm -rf /code
 
+RUN apt-get -qq -y update && \
+    apt-get -qq -y install \
+        wget && \
+    apt-get -y autoclean && \
+    apt-get -y autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /docker/requirements.txt
+
+RUN python -m pip --no-cache-dir install -r /docker/requirements.txt
+
 # Install FastJet
 # c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
 ARG FASTJET_VERSION=3.4.0
@@ -120,16 +131,8 @@ RUN mkdir /code && \
     make -j$(nproc --ignore=12) && \
     make check && \
     make install && \
-    python -m pip --no-cache-dir install "fastjet~=${FASTJET_VERSION}.0" && \
     cd / && \
     rm -rf /code
-
-RUN apt-get -qq -y update && \
-    apt-get -qq -y install \
-        wget && \
-    apt-get -y autoclean && \
-    apt-get -y autoremove && \
-    rm -rf /var/lib/apt/lists/*
 
 # Install YODA
 RUN mkdir /code && \

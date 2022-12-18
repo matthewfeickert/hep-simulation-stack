@@ -1,0 +1,5 @@
+# fastjet
+fastjet==3.4.0.3
+# yoda
+cython==0.29.32
+matplotlib==3.6.2
