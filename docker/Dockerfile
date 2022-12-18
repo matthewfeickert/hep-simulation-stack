@@ -86,7 +86,8 @@ RUN mkdir /code && \
     ./configure --help && \
     export CXX=$(which g++) && \
     ./configure \
-        --prefix=/usr/local/venv && \
+        --prefix=/usr/local/venv \
+        --enable-allcxxplugins && \
     make -j$(nproc --ignore=12) && \
     make check && \
     make install && \
@@ -112,6 +113,7 @@ RUN mkdir /code && \
     cd fjcontrib-${FASTJET_CONTRIB_VERSION} && \
     ./configure --help && \
     export CXX=$(which g++) && \
+    ./configure --help && \
     ./configure \
         --fastjet-config=$(command -v fastjet-config) \
         --prefix=/usr/local/venv && \
@@ -129,17 +131,43 @@ RUN apt-get -qq -y update && \
     apt-get -y autoremove && \
     rm -rf /var/lib/apt/lists/*
 
+# Install YODA
+RUN mkdir /code && \
+    cd /code && \
+    git clone https://gitlab.com/hepcedar/yoda.git && \
+    cd yoda && \
+    autoreconf --install && \
+    export CXX=$(command -v g++) && \
+    export PYTHON=$(command -v python) && \
+    python -m pip --no-cache-dir install \
+        cython \
+        matplotlib && \
+    ./configure --help && \
+    ./configure \
+        --prefix=/usr/local/venv && \
+    make -j$(nproc --ignore=12) && \
+    make install && \
+    cd / && \
+    rm -rf /code
+
 RUN mkdir /code && \
     cd /code && \
     export PYTHONPATH="$(dirname $(dirname $(command -v python3)))/lib/python3.10/site-packages:${PYTHONPATH}" && \
     wget https://gitlab.com/hepcedar/rivetbootstrap/raw/3.1.6/rivet-bootstrap && \
     chmod +x rivet-bootstrap && \
+    export CXX=$(command -v g++) && \
+    export PYTHON=$(command -v python) && \
     INSTALL_PREFIX=/usr/local/venv \
     INSTALL_BOOST=0 \
     INSTALL_HEPMC=0 \
     INSTALL_FASTJET=0 \
+    INSTALL_FJCONTRIB=0 \
+    INSTALL_CYTHON=0\
+    INSTALL_YODA=0 \
     BOOSTPATH=/usr/local/venv \
     HEPMCPATH=/usr/local/venv \
     FASTJETPATH=/usr/local/venv \
+    FJCONTRIBPATH=/usr/local/venv \
+    YODAPATH=/usr/local/venv \
     MAKE="make -j $(nproc --ignore=12)"\
     ./rivet-bootstrap
