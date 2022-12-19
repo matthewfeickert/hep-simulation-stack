@@ -382,7 +382,8 @@ RUN mkdir /code && \
     tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
     cd Herwig-${HERWIG_VERSION} && \
     ./configure --help && \
-    export CXX=$(which g++) && \
+    export CXX=$(command -v g++) && \
+    export PYTHON=$(command -v python) && \
     ./configure \
       --prefix=/usr/local/venv \
       --with-gsl=/usr/local/venv \
