@@ -329,8 +329,25 @@ RUN . /root/.bashrc && \
     rm py.py
 
 # Install NJet
+# First requires installing qd --- this is pretty terrible and should be archived on GitHub
+# https://www.davidhbailey.com/dhbsoftware/
 ARG NJET_VERSION=3.1.1
 RUN mkdir /code && \
+    cd /code && \
+    wget --quiet https://www.davidhbailey.com/dhbsoftware/qd-2.3.23.tar.gz && \
+    tar xvfz qd-2.3.23.tar.gz && \
+    cd qd-2.3.23 && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    ./configure \
+        --prefix=/usr/local/venv && \
+    make --jobs $(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    export LD_LIBRARY_PATH="/usr/local/venv/lib:${LD_LIBRARY_PATH}" && \
+    cd / && \
+    rm -rf /code && \
+    mkdir /code && \
     cd /code && \
     wget --quiet "https://bitbucket.org/njet/njet/downloads/njet-${NJET_VERSION}.tar.gz" && \
     tar xvfz "njet-${NJET_VERSION}.tar.gz" && \
@@ -341,6 +358,7 @@ RUN mkdir /code && \
         --prefix=/usr/local/venv \
         --disable-autoflags && \
     make --jobs $(nproc --ignore=12) && \
+    make check && \
     make install && \
     cd / && \
     rm -rf /code
