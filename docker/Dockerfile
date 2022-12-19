@@ -227,7 +227,7 @@ RUN mkdir /code && \
 # > Add it to your ~/profile to automate this after the re-login.
 RUN mkdir /code && \
     cd /code && \
-    curl --silent --location --remote-name http://gosam.hepforge.org/gosam_installer.py \
+    curl --silent --location --remote-name http://gosam.hepforge.org/gosam_installer.py && \
     python gosam_installer.py \
         --prefix=/usr/local/venv/ \
         -j $(nproc --ignore=12) \
