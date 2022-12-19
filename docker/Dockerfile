@@ -144,9 +144,6 @@ RUN mkdir /code && \
     autoreconf --install && \
     export CXX=$(command -v g++) && \
     export PYTHON=$(command -v python) && \
-    python -m pip --no-cache-dir install \
-        cython \
-        matplotlib && \
     ./configure --help && \
     ./configure \
         --prefix=/usr/local/venv && \
