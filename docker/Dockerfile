@@ -329,25 +329,9 @@ RUN . /root/.bashrc && \
     rm py.py
 
 # Install NJet
-# First requires installing qd --- this is pretty terrible and should be archived on GitHub
-# https://www.davidhbailey.com/dhbsoftware/
+# c.f. https://bitbucket.org/njet/njet/wiki/Installation for why qcdloops-1 and qd
 ARG NJET_VERSION=3.1.1
 RUN mkdir /code && \
-    cd /code && \
-    wget --quiet https://www.davidhbailey.com/dhbsoftware/qd-2.3.23.tar.gz && \
-    tar xvfz qd-2.3.23.tar.gz && \
-    cd qd-2.3.23 && \
-    ./configure --help && \
-    export CXX=$(which g++) && \
-    ./configure \
-        --prefix=/usr/local/venv && \
-    make --jobs $(nproc --ignore=12) && \
-    make check && \
-    make install && \
-    export LD_LIBRARY_PATH="/usr/local/venv/lib:${LD_LIBRARY_PATH}" && \
-    cd / && \
-    rm -rf /code && \
-    mkdir /code && \
     cd /code && \
     wget --quiet "https://bitbucket.org/njet/njet/downloads/njet-${NJET_VERSION}.tar.gz" && \
     tar xvfz "njet-${NJET_VERSION}.tar.gz" && \
@@ -357,6 +341,21 @@ RUN mkdir /code && \
     ./configure \
         --prefix=/usr/local/venv \
         --disable-autoflags && \
+    cd lib-qcdloop1 && \
+    make --jobs $(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    cd ../lib-qd && \
+    make --jobs $(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    cd .. && \
+    ./configure \
+        --prefix=/usr/local/venv \
+        --with-qcdloop1=yes \
+        --with-qd=yes \
+        LDFLAGS=-L/usr/local/venv/lib \
+        CPPFLAGS=-I/usr/local/venv/include && \
     make --jobs $(nproc --ignore=12) && \
     make check && \
     make install && \
