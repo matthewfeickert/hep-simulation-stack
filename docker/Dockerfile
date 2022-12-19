@@ -236,5 +236,86 @@ RUN mkdir /code && \
     cd / && \
     rm -rf /code
 
+RUN apt-get -qq -y update && \
+    apt-get -qq -y install \
+        gfortran && \
+    apt-get -y autoclean && \
+    apt-get -y autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install PYTHIA
+# Install before MadGraph to get hooks
+ARG PYTHIA_VERSION=8306
+# PYTHON_VERSION already exists in the base image
+RUN mkdir /code && \
+    cd /code && \
+    wget --quiet "https://pythia.org/download/pythia${PYTHIA_VERSION:0:2}/pythia${PYTHIA_VERSION}.tgz" && \
+    tar xvfz pythia${PYTHIA_VERSION}.tgz && \
+    cd pythia${PYTHIA_VERSION} && \
+    ./configure --help && \
+    export PYTHON_MINOR_VERSION=${PYTHON_VERSION%.*} && \
+    ./configure \
+      --prefix=/usr/local/venv \
+      --arch=Linux \
+      --cxx=g++ \
+      --enable-64bit \
+      --with-fastjet3=/usr/local/venv \
+      --with-hepmc2=/usr/local/venv \
+      --with-lhapdf6=/usr/local/venv \
+      --with-rivet=/usr/local/venv \
+      --with-root=/usr/local/venv \
+      --with-gzip \
+      --with-python-bin=/usr/local/venv/bin/ \
+      --with-python-lib=/usr/local/venv/lib/python${PYTHON_MINOR_VERSION} \
+      --with-python-include=/usr/local/include/python${PYTHON_MINOR_VERSION} \
+      --cxx-common="-O2 -m64 -pedantic -W -Wall -Wshadow -fPIC -std=c++17" \
+      --cxx-shared="-shared -std=c++17" && \
+    make --jobs $(nproc --ignore=12) && \
+    make install && \
+    rm -rf /code
+
+# Install MadGraph5_aMC@NLO for Python 3 and PYTHIA 8 interface
+ARG MG_VERSION=3.4.1
+# Versions viewable on Illinois mirror
+# http://madgraph.physics.illinois.edu/Downloads/MG5aMC_PY8_interface/
+ARG MG5aMC_PY8_INTERFACE_VERSION=1.3
+RUN cd /usr/local/venv && \
+    wget --quiet https://launchpad.net/mg5amcnlo/3.0/3.4.x/+download/MG5_aMC_v${MG_VERSION}.tar.gz && \
+    mkdir -p /usr/local/venv/MG5_aMC && \
+    tar -xzvf MG5_aMC_v${MG_VERSION}.tar.gz --strip=1 --directory=MG5_aMC && \
+    rm MG5_aMC_v${MG_VERSION}.tar.gz && \
+    echo "Installing MG5aMC_PY8_interface" && \
+    mkdir /code && \
+    cd /code && \
+    wget --quiet http://madgraph.phys.ucl.ac.be/Downloads/MG5aMC_PY8_interface/MG5aMC_PY8_interface_V${MG5aMC_PY8_INTERFACE_VERSION}.tar.gz && \
+    mkdir -p /code/MG5aMC_PY8_interface && \
+    tar -xzvf MG5aMC_PY8_interface_V${MG5aMC_PY8_INTERFACE_VERSION}.tar.gz --directory=MG5aMC_PY8_interface && \
+    cd MG5aMC_PY8_interface && \
+    python compile.py /usr/local/venv/ --pythia8_makefile $(find /usr/local/ -type d -name MG5_aMC) && \
+    mkdir -p /usr/local/venv/MG5_aMC/HEPTools/MG5aMC_PY8_interface && \
+    cp *.h /usr/local/venv/MG5_aMC/HEPTools/MG5aMC_PY8_interface/ && \
+    cp *_VERSION_ON_INSTALL /usr/local/venv/MG5_aMC/HEPTools/MG5aMC_PY8_interface/ && \
+    cp MG5aMC_PY8_interface /usr/local/venv/MG5_aMC/HEPTools/MG5aMC_PY8_interface/ && \
+    rm -rf /code && \
+    printf '\nexport PATH=/usr/local/venv/MG5_aMC/bin:"${PATH}"\n' >> /root/.bashrc
+
+# Change the MadGraph5_aMC@NLO configuration settings
+RUN sed -i '/fastjet =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
+    sed -i '/lhapdf_py3 =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
+    sed -i 's|# pythia8_path.*|pythia8_path = /usr/local/venv|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
+    sed -i '/mg5amc_py8_interface_path =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
+    sed -i 's|# fortran_compiler.*|fortran_compiler = '$(command -v gfortran)'|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
+    sed -i 's|# f2py_compiler_py3.*|f2py_compiler_py3 = '$(command -v f2py)'|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt
+
+# TODO: Install NLO dependencies independently for greater control
+# Running the NLO process forces install of cuttools and iregi
+RUN echo "exit" | mg5_aMC && \
+    echo "install ninja" | mg5_aMC && \
+    echo "install collier" | mg5_aMC && \
+    echo "generate p p > e+ e- aEW=2 aS=0 [QCD]; output test_nlo" | mg5_aMC && \
+    rm -rf test_nlo && \
+    rm -rf $(find /usr/local/ -type d -name HEPToolsInstallers) && \
+    rm py.py
+
 RUN lhapdf install CT14nlo && \
     lhapdf install CT14lo
