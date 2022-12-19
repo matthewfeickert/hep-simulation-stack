@@ -328,39 +328,38 @@ RUN . /root/.bashrc && \
     rm -rf $(find /usr/local/ -type d -name HEPToolsInstallers) && \
     rm py.py
 
-# Install NJet
-# c.f. https://bitbucket.org/njet/njet/wiki/Installation for why qcdloops-1 and qd
-ARG NJET_VERSION=3.1.1
-RUN mkdir /code && \
-    cd /code && \
-    wget --quiet "https://bitbucket.org/njet/njet/downloads/njet-${NJET_VERSION}.tar.gz" && \
-    tar xvfz "njet-${NJET_VERSION}.tar.gz" && \
-    cd "njet-${NJET_VERSION}" && \
-    ./configure --help && \
-    export CXX=$(which g++) && \
-    ./configure \
-        --prefix=/usr/local/venv \
-        --disable-autoflags && \
-    cd lib-qcdloop1 && \
-    make --jobs $(nproc --ignore=12) && \
-    make check && \
-    make install && \
-    cd ../lib-qd && \
-    make --jobs $(nproc --ignore=12) && \
-    make check && \
-    make install && \
-    cd .. && \
-    ./configure \
-        --prefix=/usr/local/venv \
-        --with-qcdloop1=yes \
-        --with-qd=yes \
-        LDFLAGS=-L/usr/local/venv/lib \
-        CPPFLAGS=-I/usr/local/venv/include && \
-    make --jobs $(nproc --ignore=12) && \
-    make check && \
-    make install && \
-    cd / && \
-    rm -rf /code
+# DEBUG: Install currently broken
+# # Install NJet
+# # c.f. https://bitbucket.org/njet/njet/wiki/Installation for why qcdloops-1 and qd
+# ARG NJET_VERSION=3.1.1
+# RUN mkdir /code && \
+#     cd /code && \
+#     wget --quiet "https://bitbucket.org/njet/njet/downloads/njet-${NJET_VERSION}.tar.gz" && \
+#     tar xvfz "njet-${NJET_VERSION}.tar.gz" && \
+#     cd "njet-${NJET_VERSION}" && \
+#     ./configure --help && \
+#     export CXX=$(which g++) && \
+#     ./configure \
+#         --prefix=/usr/local/venv \
+#         --disable-autoflags && \
+#     cd lib-qcdloop1 && \
+#     make --jobs $(nproc --ignore=12) && \
+#     make check && \
+#     make install && \
+#     cd ../lib-qd && \
+#     make --jobs $(nproc --ignore=12) && \
+#     make check && \
+#     make install && \
+#     cd .. && \
+#     ./configure \
+#         --prefix=/usr/local/venv \
+#         --with-qcdloop1=/usr/local/venv \
+#         --with-qd=/usr/local/venv && \
+#     make --jobs $(nproc --ignore=12) && \
+#     make check && \
+#     make install && \
+#     cd / && \
+#     rm -rf /code
 
 # Install OpenLoops
 # useless for real work given https://gitlab.com/openloops/OpenLoops/-/issues/2
@@ -370,6 +369,35 @@ RUN cd /usr/local/venv/ && \
     cd OpenLoops && \
     git checkout "OpenLoops-${OPENLOOPS_VERSION}" && \
     ./scons
+
+# https://herwig.hepforge.org/tutorials/installation/prerequisite.html#decays
+
+#TODO: Add TAUOLA, PHOTOS, EvtGen
+
+# Install HERWIG7
+ARG HERWIG_VERSION=7.2.3
+RUN mkdir /code && \
+    cd /code && \
+    wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
+    tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
+    cd Herwig-${HERWIG_VERSION} && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    ./configure \
+      --prefix=/usr/local/venv \
+      --with-gsl=/usr/local/venv \
+      --with-thepeg=/usr/local/venv \
+      --with-boost=/usr/local/venv \
+      --with-gosam=/usr/local/venv \
+      --with-openloops=/usr/local/venv/OpenLoops \
+      --with-madgraph=/usr/local/venv/MG5_aMC \
+      --with-pythia=/usr/local/venv \
+      --with-fastjet=/usr/local/venv && \
+    make --jobs $(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    cd / && \
+    rm -rf /code
 
 RUN lhapdf install CT14nlo && \
     lhapdf install CT14lo
