@@ -88,6 +88,7 @@ RUN python -m pip --no-cache-dir install --upgrade pip setuptools wheel && \
 
 # Install FastJet
 # c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
+# Use of fragile-shared-install is required by RIVET
 ARG FASTJET_VERSION=3.4.0
 ARG FASTJET_CONTRIB_VERSION=1.050
 RUN mkdir /code && \
@@ -161,7 +162,6 @@ RUN mkdir /code && \
 
 RUN mkdir /code && \
     cd /code && \
-    export PYTHONPATH="$(dirname $(dirname $(command -v python3)))/lib/python3.10/site-packages:${PYTHONPATH}" && \
     wget https://gitlab.com/hepcedar/rivetbootstrap/raw/3.1.6/rivet-bootstrap && \
     chmod +x rivet-bootstrap && \
     export CXX=$(command -v g++) && \
@@ -179,4 +179,6 @@ RUN mkdir /code && \
     FJCONTRIBPATH=/usr/local/venv \
     YODAPATH=/usr/local/venv \
     MAKE="make -j $(nproc --ignore=12)"\
-    ./rivet-bootstrap
+    ./rivet-bootstrap && \
+    cd / && \
+    rm -rf /code
