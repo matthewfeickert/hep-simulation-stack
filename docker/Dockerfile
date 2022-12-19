@@ -160,6 +160,8 @@ RUN mkdir /code && \
     cd / && \
     rm -rf /code
 
+# https://gitlab.com/hepcedar/rivet/-/blob/release-3-1-x/doc/tutorials/installation.md
+# TODO: Don't use bootstrap for reproducibility
 RUN mkdir /code && \
     cd /code && \
     wget https://gitlab.com/hepcedar/rivetbootstrap/raw/3.1.6/rivet-bootstrap && \
