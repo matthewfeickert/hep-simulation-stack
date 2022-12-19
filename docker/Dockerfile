@@ -328,5 +328,31 @@ RUN . /root/.bashrc && \
     rm -rf $(find /usr/local/ -type d -name HEPToolsInstallers) && \
     rm py.py
 
+# Install NJet
+ARG NJET_VERSION=3.1.1
+RUN mkdir /code && \
+    cd /code && \
+    wget --quiet "https://bitbucket.org/njet/njet/downloads/njet-${NJET_VERSION}.tar.gz" && \
+    tar xvfz "njet-${NJET_VERSION}.tar.gz" && \
+    cd "njet-${NJET_VERSION}" && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    ./configure \
+        --prefix=/usr/local/venv \
+        --disable-autoflags && \
+    make --jobs $(nproc --ignore=12) && \
+    make install && \
+    cd / && \
+    rm -rf /code
+
+# Install OpenLoops
+# useless for real work given https://gitlab.com/openloops/OpenLoops/-/issues/2
+ARG OPENLOOPS_VERSION=2.1.2
+RUN cd /usr/local/venv/ && \
+    git clone https://gitlab.com/openloops/OpenLoops.git && \
+    cd OpenLoops && \
+    git checkout "OpenLoops-${OPENLOOPS_VERSION}" && \
+    ./scons
+
 RUN lhapdf install CT14nlo && \
     lhapdf install CT14lo
