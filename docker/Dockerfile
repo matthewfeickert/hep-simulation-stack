@@ -12,7 +12,10 @@ FROM base as builder
 RUN apt-get -qq -y update && \
     apt-get -qq -y install \
         python3-dev \
-        libboost-all-dev && \
+        libboost-all-dev \
+        wget \
+        bzip2 \
+        time && \
     apt-get -y autoclean && \
     apt-get -y autoremove && \
     rm -rf /var/lib/apt/lists/*
@@ -73,13 +76,6 @@ RUN mkdir /code && \
     make -j$(nproc --ignore=12) && \
     make install && \
     rm -rf /code
-
-RUN apt-get -qq -y update && \
-    apt-get -qq -y install \
-        wget && \
-    apt-get -y autoclean && \
-    apt-get -y autoremove && \
-    rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /docker/requirements.txt
 
@@ -200,14 +196,6 @@ RUN mkdir /code && \
     make install && \
     cd / && \
     rm -rf /code
-
-RUN apt-get -qq -y update && \
-    apt-get -qq -y install \
-        bzip2 \
-        time && \
-    apt-get -y autoclean && \
-    apt-get -y autoremove && \
-    rm -rf /var/lib/apt/lists/*
 
 # ThePEG
 ARG ThePEG_VERSION=2.2.3
