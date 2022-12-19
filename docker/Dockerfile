@@ -391,54 +391,31 @@ RUN lhapdf install CT14nlo && \
 RUN cp /root/.bashrc /etc/.bashrc && \
     echo 'if [ -f /etc/.bashrc ]; then . /etc/.bashrc; fi' >> /etc/profile
 
-# Install MINIMAL HERWIG7
+# Install HERWIG7
 # Need to set am_cv_python_version manually as there is a bug in configure that can't handle Python 3.10
-# ARG HERWIG_VERSION=7.2.3
-# RUN mkdir /code && \
-#     cd /code && \
-#     wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
-#     tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
-#     cd Herwig-${HERWIG_VERSION} && \
-#     ./configure --help && \
-#     export CXX=$(command -v g++) && \
-#     export PYTHON=$(command -v python) && \
-#     export am_cv_python_version=${PYTHON_VERSION%.*} && \
-#     ./configure \
-#       --prefix=/usr/local/venv \
-#       --with-gsl=/usr/local/venv \
-#       --with-thepeg=/usr/local/venv \
-#       --with-boost=/usr/local/venv \
-#       --with-fastjet=/usr/local/venv && \
-#     make --jobs $(nproc --ignore=8) && \
-#     make check && \
-#     make install && \
-#     cd / && \
-#     rm -rf /code
-
-# # Install HERWIG7
-# # Need to set am_cv_python_version manually as there is a bug in configure that can't handle Python 3.10
-# ARG HERWIG_VERSION=7.2.3
-# RUN mkdir /code && \
-#     cd /code && \
-#     wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
-#     tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
-#     cd Herwig-${HERWIG_VERSION} && \
-#     ./configure --help && \
-#     export CXX=$(command -v g++) && \
-#     export PYTHON=$(command -v python) && \
-#     export am_cv_python_version=${PYTHON_VERSION%.*} && \
-#     ./configure \
-#       --prefix=/usr/local/venv \
-#       --with-gsl=/usr/local/venv \
-#       --with-thepeg=/usr/local/venv \
-#       --with-boost=/usr/local/venv \
-#       --with-gosam=/usr/local/venv \
-#       --with-openloops=/usr/local/venv/OpenLoops \
-#       --with-madgraph=/usr/local/venv/MG5_aMC \
-#       --with-pythia=/usr/local/venv \
-#       --with-fastjet=/usr/local/venv && \
-#     make --jobs $(nproc --ignore=8) && \
-#     make check && \
-#     make install && \
-#     cd / && \
-#     rm -rf /code
+# FIXME: HERWIG_VERSION=7.2.3 fails to build
+ARG HERWIG_VERSION=7.2.2
+RUN mkdir /code && \
+    cd /code && \
+    wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
+    tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
+    cd Herwig-${HERWIG_VERSION} && \
+    ./configure --help && \
+    export CXX=$(command -v g++) && \
+    export PYTHON=$(command -v python) && \
+    export am_cv_python_version=${PYTHON_VERSION%.*} && \
+    ./configure \
+      --prefix=/usr/local/venv \
+      --with-gsl=/usr/local/venv \
+      --with-thepeg=/usr/local/venv \
+      --with-boost=/usr/local/venv \
+      --with-gosam=/usr/local/venv \
+      --with-openloops=/usr/local/venv/OpenLoops \
+      --with-madgraph=/usr/local/venv/MG5_aMC \
+      --with-pythia=/usr/local/venv \
+      --with-fastjet=/usr/local/venv && \
+    make --jobs $(nproc --ignore=8) && \
+    make check && \
+    make install && \
+    cd / && \
+    rm -rf /code
