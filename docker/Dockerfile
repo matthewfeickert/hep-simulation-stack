@@ -184,3 +184,55 @@ RUN mkdir /code && \
     ./rivet-bootstrap && \
     cd / && \
     rm -rf /code
+
+# GSL
+ARG GSL_VERSION=2.7.1
+RUN mkdir /code && \
+    cd /code && \
+    wget https://mirror.ibcp.fr/pub/gnu/gsl/gsl-${GSL_VERSION}.tar.gz && \
+    tar xvfz gsl-${GSL_VERSION}.tar.gz && \
+    cd gsl-${GSL_VERSION} && \
+    ./configure --help && \
+    ./configure \
+        --prefix=/usr/local/venv && \
+    make -j$(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    cd / && \
+    rm -rf /code
+
+RUN apt-get -qq -y update && \
+    apt-get -qq -y install \
+        bzip2 \
+        time && \
+    apt-get -y autoclean && \
+    apt-get -y autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
+# ThePEG
+ARG ThePEG_VERSION=2.2.3
+RUN mkdir /code && \
+    cd /code && \
+    wget https://thepeg.hepforge.org/downloads/ThePEG-${ThePEG_VERSION}.tar.bz2 && \
+    tar -xvf ThePEG-${ThePEG_VERSION}.tar.bz2 && \
+    cd ThePEG-${ThePEG_VERSION} && \
+    ./configure --help && \
+    export CXX=$(which g++) && \
+    ./configure \
+        --prefix=/usr/local/venv \
+        --with-gsl=/usr/local/venv \
+        --with-lhapdf=/usr/local/venv \
+        --with-hepmc=/usr/local/venv \
+        --with-rivet=/usr/local/venv \
+        --with-fastjet=/usr/local/venv \
+        --with-boost=/usr/local/venv && \
+    make -j$(nproc --ignore=12) && \
+    make check && \
+    make install && \
+    cd / && \
+    rm -rf /code
+
+# https://herwig.hepforge.org/tutorials/installation/prerequisite.html#external-amplitude-providers
+
+RUN lhapdf install CT14nlo && \
+    lhapdf install CT14lo
