@@ -15,7 +15,10 @@ RUN apt-get -qq -y update && \
         libboost-all-dev \
         wget \
         bzip2 \
-        time && \
+        time \
+        gfortran \
+        rsync \
+        ghostscript && \
     apt-get -y autoclean && \
     apt-get -y autoremove && \
     rm -rf /var/lib/apt/lists/*
@@ -51,7 +54,7 @@ RUN mkdir /code && \
       -DCMAKE_CXX_COMPILER=$(which g++) \
       -DCMAKE_BUILD_TYPE=Release \
       -Dbuild_docs:BOOL=OFF \
-      -Dmomentum:STRING=MEV \
+      -Dmomentum:STRING=GEV \
       -Dlength:STRING=MM \
       -DCMAKE_INSTALL_PREFIX=/usr/local/venv \
       -S src \
@@ -75,6 +78,7 @@ RUN mkdir /code && \
       --prefix=/usr/local/venv \
       --with-boost=/usr/local/venv && \
     make -j$(nproc --ignore=12) && \
+    make check && \
     make install && \
     rm -rf /code
 
@@ -86,6 +90,7 @@ RUN python -m pip --no-cache-dir install --upgrade pip setuptools wheel && \
 # Install FastJet
 # c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
 # Use of fragile-shared-install is required by RIVET
+# TODO: See if --enable-allplugins is actually needed
 ARG FASTJET_VERSION=3.4.0
 ARG FASTJET_CONTRIB_VERSION=1.050
 RUN mkdir /code && \
@@ -230,20 +235,11 @@ RUN mkdir /code && \
     curl --silent --location --remote-name http://gosam.hepforge.org/gosam_installer.py && \
     python gosam_installer.py \
         --prefix=/usr/local/venv/ \
-        -j $(nproc --ignore=12) \
+        -j $(nproc --ignore=10) \
         --batch \
         --verbose && \
     cd / && \
     rm -rf /code
-
-RUN apt-get -qq -y update && \
-    apt-get -qq -y install \
-        gfortran \
-        rsync \
-        ghostscript && \
-    apt-get -y autoclean && \
-    apt-get -y autoremove && \
-    rm -rf /var/lib/apt/lists/*
 
 # Install PYTHIA
 # Install before MadGraph to get hooks
@@ -366,33 +362,79 @@ RUN cd /usr/local/venv/ && \
 
 # https://herwig.hepforge.org/tutorials/installation/prerequisite.html#decays
 
-#TODO: Add TAUOLA, PHOTOS, EvtGen
+#TODO: PHOTOS, EvtGen
 
-# Install HERWIG7
-ARG HERWIG_VERSION=7.2.3
-RUN mkdir /code && \
-    cd /code && \
-    wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
-    tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
-    cd Herwig-${HERWIG_VERSION} && \
-    ./configure --help && \
-    export CXX=$(command -v g++) && \
-    export PYTHON=$(command -v python) && \
-    ./configure \
-      --prefix=/usr/local/venv \
-      --with-gsl=/usr/local/venv \
-      --with-thepeg=/usr/local/venv \
-      --with-boost=/usr/local/venv \
-      --with-gosam=/usr/local/venv \
-      --with-openloops=/usr/local/venv/OpenLoops \
-      --with-madgraph=/usr/local/venv/MG5_aMC \
-      --with-pythia=/usr/local/venv \
-      --with-fastjet=/usr/local/venv && \
-    make --jobs $(nproc --ignore=12) && \
-    make check && \
-    make install && \
-    cd / && \
-    rm -rf /code
+# Install TAUOLA
+# ARG TAUOLA_VERSION=1.1.8
+# RUN mkdir /code && \
+#     cd /code && \
+#     wget --quiet "http://tauolapp.web.cern.ch/tauolapp/resources/TAUOLA.${TAUOLA_VERSION}/TAUOLA.${TAUOLA_VERSION}.tar.gz" && \
+#     tar -xzvf "TAUOLA.${TAUOLA_VERSION}.tar.gz" && \
+#     cd TAUOLA && \
+#     ./configure --help && \
+#     export CXX=$(command -v g++) && \
+#     ./configure \
+#       --prefix=/usr/local/venv \
+#       --with-hepmc=/usr/local/venv \
+#       --without-hepmc3 \
+#       --with-pythia8=/usr/local/venv \
+#       --with-lhapdf=/usr/local/venv && \
+#     make --jobs $(nproc --ignore=8) && \
+#     make install && \
+#     cd / && \
+#     rm -rf /code
 
 RUN lhapdf install CT14nlo && \
     lhapdf install CT14lo
+
+# Install MINIMAL HERWIG7
+# Need to set am_cv_python_version manually as there is a bug in configure that can't handle Python 3.10
+# ARG HERWIG_VERSION=7.2.3
+# RUN mkdir /code && \
+#     cd /code && \
+#     wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
+#     tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
+#     cd Herwig-${HERWIG_VERSION} && \
+#     ./configure --help && \
+#     export CXX=$(command -v g++) && \
+#     export PYTHON=$(command -v python) && \
+#     export am_cv_python_version=${PYTHON_VERSION%.*} && \
+#     ./configure \
+#       --prefix=/usr/local/venv \
+#       --with-gsl=/usr/local/venv \
+#       --with-thepeg=/usr/local/venv \
+#       --with-boost=/usr/local/venv \
+#       --with-fastjet=/usr/local/venv && \
+#     make --jobs $(nproc --ignore=8) && \
+#     make check && \
+#     make install && \
+#     cd / && \
+#     rm -rf /code
+
+# # Install HERWIG7
+# # Need to set am_cv_python_version manually as there is a bug in configure that can't handle Python 3.10
+# ARG HERWIG_VERSION=7.2.3
+# RUN mkdir /code && \
+#     cd /code && \
+#     wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
+#     tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
+#     cd Herwig-${HERWIG_VERSION} && \
+#     ./configure --help && \
+#     export CXX=$(command -v g++) && \
+#     export PYTHON=$(command -v python) && \
+#     export am_cv_python_version=${PYTHON_VERSION%.*} && \
+#     ./configure \
+#       --prefix=/usr/local/venv \
+#       --with-gsl=/usr/local/venv \
+#       --with-thepeg=/usr/local/venv \
+#       --with-boost=/usr/local/venv \
+#       --with-gosam=/usr/local/venv \
+#       --with-openloops=/usr/local/venv/OpenLoops \
+#       --with-madgraph=/usr/local/venv/MG5_aMC \
+#       --with-pythia=/usr/local/venv \
+#       --with-fastjet=/usr/local/venv && \
+#     make --jobs $(nproc --ignore=8) && \
+#     make check && \
+#     make install && \
+#     cd / && \
+#     rm -rf /code
