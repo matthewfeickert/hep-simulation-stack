@@ -239,7 +239,8 @@ RUN mkdir /code && \
 RUN apt-get -qq -y update && \
     apt-get -qq -y install \
         gfortran \
-        rsync && \
+        rsync \
+        ghostscript && \
     apt-get -y autoclean && \
     apt-get -y autoremove && \
     rm -rf /var/lib/apt/lists/*
@@ -260,6 +261,7 @@ RUN mkdir /code && \
       --arch=Linux \
       --cxx=g++ \
       --enable-64bit \
+      --enable-shared \
       --with-fastjet3=/usr/local/venv \
       --with-hepmc2=/usr/local/venv \
       --with-lhapdf6=/usr/local/venv \
@@ -299,14 +301,6 @@ RUN cd /usr/local/venv && \
     cp MG5aMC_PY8_interface /usr/local/venv/MG5_aMC/HEPTools/MG5aMC_PY8_interface/ && \
     rm -rf /code && \
     printf '\nexport PATH=/usr/local/venv/MG5_aMC/bin:"${PATH}"\n' >> /root/.bashrc
-
-
-RUN apt-get -qq -y update && \
-    apt-get -qq -y install \
-        ghostscript && \
-    apt-get -y autoclean && \
-    apt-get -y autoremove && \
-    rm -rf /var/lib/apt/lists/*
 
 # Change the MadGraph5_aMC@NLO configuration settings
 RUN sed -i '/fastjet =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
