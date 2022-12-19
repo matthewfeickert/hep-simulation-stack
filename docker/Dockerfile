@@ -384,18 +384,14 @@ RUN cd /usr/local/venv/ && \
 #     cd / && \
 #     rm -rf /code
 
-RUN lhapdf install CT14nlo && \
-    lhapdf install CT14lo
-
-# Make sure environment gets loaded regarldess of user
-RUN cp /root/.bashrc /etc/.bashrc && \
-    echo 'if [ -f /etc/.bashrc ]; then . /etc/.bashrc; fi' >> /etc/profile
-
 # Install HERWIG7
 # Need to set am_cv_python_version manually as there is a bug in configure that can't handle Python 3.10
 # FIXME: HERWIG_VERSION=7.2.3 fails to build
+# CT14 required for HERWIG
 ARG HERWIG_VERSION=7.2.2
-RUN mkdir /code && \
+RUN lhapdf install CT14nlo && \
+    lhapdf install CT14lo && \
+    mkdir /code && \
     cd /code && \
     wget --quiet "https://herwig.hepforge.org/downloads/Herwig-${HERWIG_VERSION}.tar.bz2" && \
     tar xjf Herwig-${HERWIG_VERSION}.tar.bz2 && \
@@ -424,11 +420,10 @@ RUN mkdir /code && \
 COPY jupyter_notebook_config.py /etc/jupyter/
 COPY jupyter_lab_config.py /etc/jupyter/
 
+# Make sure environment gets loaded regarldess of user
 # FIXME: Remove need for --allow-root
-RUN python -m pip --no-cache-dir install \
-        jupyter \
-        jupyterlab \
-        ipympl && \
+RUN cp /root/.bashrc /etc/.bashrc && \
+    echo 'if [ -f /etc/.bashrc ]; then . /etc/.bashrc; fi' >> /etc/profile && \
     printf '#!/bin/bash\n\njupyter lab --no-browser --ip 0.0.0.0 --port 8888 --allow-root\n' > /docker/entrypoint.sh && \
     chmod 777 /docker/entrypoint.sh && \
     mkdir -p \
