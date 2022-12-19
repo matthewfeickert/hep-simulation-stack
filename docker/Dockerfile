@@ -387,6 +387,10 @@ RUN cd /usr/local/venv/ && \
 RUN lhapdf install CT14nlo && \
     lhapdf install CT14lo
 
+# Make sure environment gets loaded regarldess of user
+RUN cp /root/.bashrc /etc/.bashrc && \
+    echo 'if [ -f /etc/.bashrc ]; then . /etc/.bashrc; fi' >> /etc/profile
+
 # Install MINIMAL HERWIG7
 # Need to set am_cv_python_version manually as there is a bug in configure that can't handle Python 3.10
 # ARG HERWIG_VERSION=7.2.3
