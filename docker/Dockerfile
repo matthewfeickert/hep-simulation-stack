@@ -72,7 +72,8 @@ RUN mkdir /code && \
     export CXX=$(which g++) && \
     export PYTHON=$(which python) && \
     ./configure \
-      --prefix=/usr/local/venv && \
+      --prefix=/usr/local/venv \
+      --with-boost=/usr/local/venv && \
     make -j$(nproc --ignore=12) && \
     make install && \
     rm -rf /code
