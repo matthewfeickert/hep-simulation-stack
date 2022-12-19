@@ -138,10 +138,12 @@ RUN mkdir /code && \
     rm -rf /code
 
 # Install YODA
+ARG YODA_VERSION=1.9.7
 RUN mkdir /code && \
     cd /code && \
-    git clone https://gitlab.com/hepcedar/yoda.git && \
-    cd yoda && \
+    curl --silent --location --remote-name https://yoda.hepforge.org/downloads/YODA-${YODA_VERSION}.tar.gz && \
+    tar xvfz YODA-${YODA_VERSION}.tar.gz && \
+    cd YODA-${YODA_VERSION} && \
     autoreconf --install && \
     export CXX=$(command -v g++) && \
     export PYTHON=$(command -v python) && \
