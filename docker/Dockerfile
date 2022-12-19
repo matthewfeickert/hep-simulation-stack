@@ -222,5 +222,21 @@ RUN mkdir /code && \
 
 # https://herwig.hepforge.org/tutorials/installation/prerequisite.html#external-amplitude-providers
 
+# GoSam
+# TODO: Check if following needed
+# > You need to run the following line to set environment variables before you can use GoSam:
+# >  source /usr/local/venv/bin/gosam_setup_env.sh
+# > Add it to your ~/profile to automate this after the re-login.
+RUN mkdir /code && \
+    cd /code && \
+    curl --silent --location --remote-name http://gosam.hepforge.org/gosam_installer.py \
+    python gosam_installer.py \
+        --prefix=/usr/local/venv/ \
+        -j $(nproc --ignore=12) \
+        --batch \
+        --verbose && \
+    cd / && \
+    rm -rf /code
+
 RUN lhapdf install CT14nlo && \
     lhapdf install CT14lo
