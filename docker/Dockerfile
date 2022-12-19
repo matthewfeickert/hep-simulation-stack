@@ -238,7 +238,8 @@ RUN mkdir /code && \
 
 RUN apt-get -qq -y update && \
     apt-get -qq -y install \
-        gfortran && \
+        gfortran \
+        rsync && \
     apt-get -y autoclean && \
     apt-get -y autoremove && \
     rm -rf /var/lib/apt/lists/*
@@ -299,17 +300,27 @@ RUN cd /usr/local/venv && \
     rm -rf /code && \
     printf '\nexport PATH=/usr/local/venv/MG5_aMC/bin:"${PATH}"\n' >> /root/.bashrc
 
+
+RUN apt-get -qq -y update && \
+    apt-get -qq -y install \
+        ghostscript && \
+    apt-get -y autoclean && \
+    apt-get -y autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
 # Change the MadGraph5_aMC@NLO configuration settings
 RUN sed -i '/fastjet =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
     sed -i '/lhapdf_py3 =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
     sed -i 's|# pythia8_path.*|pythia8_path = /usr/local/venv|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
     sed -i '/mg5amc_py8_interface_path =/s/^# //g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
+    sed -i 's|# eps_viewer.*|eps_viewer = '$(command -v ghostscript)'|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
     sed -i 's|# fortran_compiler.*|fortran_compiler = '$(command -v gfortran)'|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt && \
     sed -i 's|# f2py_compiler_py3.*|f2py_compiler_py3 = '$(command -v f2py)'|g' /usr/local/venv/MG5_aMC/input/mg5_configuration.txt
 
 # TODO: Install NLO dependencies independently for greater control
 # Running the NLO process forces install of cuttools and iregi
-RUN echo "exit" | mg5_aMC && \
+RUN . /root/.bashrc && \
+    echo "exit" | mg5_aMC && \
     echo "install ninja" | mg5_aMC && \
     echo "install collier" | mg5_aMC && \
     echo "generate p p > e+ e- aEW=2 aS=0 [QCD]; output test_nlo" | mg5_aMC && \
