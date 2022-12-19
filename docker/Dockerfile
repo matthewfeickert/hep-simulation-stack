@@ -419,3 +419,35 @@ RUN mkdir /code && \
     make install && \
     cd / && \
     rm -rf /code
+
+# TODO: Clean up and move around
+COPY jupyter_notebook_config.py /etc/jupyter/
+COPY jupyter_lab_config.py /etc/jupyter/
+
+# FIXME: Remove need for --allow-root
+RUN python -m pip --no-cache-dir install \
+        jupyter \
+        jupyterlab \
+        ipympl && \
+    printf '#!/bin/bash\n\njupyter lab --no-browser --ip 0.0.0.0 --port 8888 --allow-root\n' > /docker/entrypoint.sh && \
+    chmod 777 /docker/entrypoint.sh && \
+    mkdir -p \
+        /.local \
+        /.jupyter \
+        /.config \
+        /.cache \
+        /work && \
+    chmod -R 777 \
+        /.local \
+        /.jupyter \
+        /.config \
+        /.cache \
+        /work && \
+    chmod -R 777 /usr/local/venv && \
+    echo "SHELL=/bin/bash" >> /etc/environment
+
+# Run with login shell to trigger /etc/profile
+# c.f. https://youngstone89.medium.com/unix-introduction-bash-startup-files-loading-order-562543ac12e9
+ENTRYPOINT ["/bin/bash", "-l"]
+
+CMD ["/docker/entrypoint.sh"]

@@ -2,6 +2,7 @@ import ROOT
 import numpy
 import lhapdf
 import pythia8
+import Herwig
 import yoda
 import rivet
 
