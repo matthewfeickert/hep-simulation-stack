@@ -1,9 +1,12 @@
 # fastjet
-fastjet==3.4.0.3
+fastjet==3.4.0.7
 # yoda
-cython==0.29.32
-matplotlib==3.6.2
+cython==0.29.35
+matplotlib==3.7.1
 # jupyter
-jupyter==1.0.0
-jupyterlab==3.5.1
-ipympl==0.9.2
+notebook==6.5.4
+jupyterlab==4.0.2
+jupytext==1.14.6
+ipympl==0.9.3
+# jupyter + pythia8
+wurlitzer==3.0.3

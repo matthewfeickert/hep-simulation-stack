@@ -1,5 +1,4 @@
 import shutil
-from datetime import datetime
 from pathlib import Path
 
 import nox
@@ -10,59 +9,31 @@ nox.options.sessions = ["lock"]
 
 DIR = Path(__file__).parent.resolve()
 
-@nox.session()
-def build(session):
+
+@nox.session(python=False)
+def lock(session):
     """
-    Build image
+    Build a lockfile for the image with pip-tools
     """
-    session.run("docker", "pull", "atlasamglab/stats-base:root6.26.10", external=True)
+    base_image = "atlasamglab/stats-base:root6.28.04"
+    session.run("docker", "pull", base_image, external=True)
     session.run(
         "docker",
-        "build",
-        "--file",
-        "docker/Dockerfile",
-        "--build-arg",
-        "BASE_IMAGE=atlasamglab/stats-base:root6.26.10",
-        "--tag",
-        "matthewfeickert/hep-simulation-stack:latest",
-        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{DIR}:/build",
+        "-w",
+        "/build",
+        base_image,
+        "bash docker/compile_lock.sh",
         external=True,
     )
 
+    # Make lockfile local user owned
+    root_controlled_file = DIR / "requirements.lock.tmp"
+    shutil.move(DIR / "docker" / "requirements.lock", root_controlled_file)
+    shutil.copy(root_controlled_file, DIR / "docker" / "requirements.lock")
 
-@nox.session()
-def tag(session):
-    """
-    Tag images
-    """
-    for tag in session.posargs:
-        session.run(
-            "docker",
-            "tag",
-            "hub.opensciencegrid.org/iris-hep/analysis-systems-base:latest",
-            f"hub.opensciencegrid.org/iris-hep/analysis-systems-base:{tag}",
-            external=True,
-        )
-
-
-@nox.session()
-def publish(session):
-    """
-    Push images to container registries
-    """
-    for tag in ["latest", datetime.now().strftime("%Y-%m-%d")]:
-        session.run(
-            "docker",
-            "push",
-            f"hub.opensciencegrid.org/iris-hep/analysis-systems-base:{tag}",
-            external=True,
-        )
-
-
-@nox.session()
-def deploy(session):
-    """
-    Build, tag, and push to registry
-    """
-    session.notify("build")
-    session.notify("publish")
+    if root_controlled_file.exists():
+        root_controlled_file.unlink()

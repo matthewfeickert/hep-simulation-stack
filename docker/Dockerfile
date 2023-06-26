@@ -1,17 +1,22 @@
-ARG BASE_IMAGE=atlasamglab/stats-base:root6.26.10
+ARG BASE_IMAGE=atlasamglab/stats-base:root6.28.04
 FROM ${BASE_IMAGE} as base
+
+FROM base as builder
 
 ARG TARGETARCH
 
+USER root
+WORKDIR /
+
 SHELL [ "/bin/bash", "-c" ]
 
-FROM base as builder
+RUN echo -e "#\n# TARGETARCH: ${TARGETARCH}" && \
+    mkdir -p /docker/logs
 
 # https://herwig.hepforge.org/tutorials/installation/prerequisite.html
 
 RUN apt-get -qq -y update && \
     apt-get -qq -y install \
-        python3-dev \
         libboost-all-dev \
         wget \
         bzip2 \
@@ -37,9 +42,21 @@ RUN export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/include/python3.
     ./bootstrap.sh \
       --prefix=/usr/local/venv \
       --with-python=$(command -v python3) && \
-    ./b2 install \
+    ./b2 --help && \
+    if [[ "${TARGETARCH}" == "amd64" ]]; then \
+        export B2_ARCH="x86"; \
+    elif [[ "${TARGETARCH}" == "arm64" ]]; then \
+        export B2_ARCH="arm"; \
+    else \
+      echo "TARGETARCH ${TARGETARCH} not supported. Exiting now."; \
+      exit -1; \
+    fi && \
+    ./b2 \
+        architecture="${B2_ARCH}" \
         --layout=tagged \
-        -j$(nproc --ignore=1) && \
+        -j$(nproc --ignore=1) \
+        install && \
+    unset B2_ARCH && \
     cd / && \
     rm -rf /code
 
@@ -60,9 +77,33 @@ RUN mkdir /code && \
       -S src \
       -B build && \
     cmake build -L && \
-    cmake --build build --parallel $(nproc --ignore=12) && \
+    cmake --build build --parallel $(nproc --ignore=1) && \
     cmake --build build --target install && \
     rm -rf /code
+
+# FIXME: Causing compile issues with MG5aMC_PY8_interface
+# # Install HepMC3
+# ARG HEPMC3_VERSION=3.2.6
+# RUN mkdir /code && \
+#     cd /code && \
+#     wget https://hepmc.web.cern.ch/hepmc/releases/HepMC3-${HEPMC3_VERSION}.tar.gz && \
+#     tar xvfz HepMC3-${HEPMC3_VERSION}.tar.gz && \
+#     mv HepMC3-${HEPMC3_VERSION} src && \
+#     cmake \
+#       -DCMAKE_CXX_COMPILER=$(command -v g++) \
+#       -DCMAKE_BUILD_TYPE=Release \
+#       -DHEPMC3_ENABLE_ROOTIO=OFF \
+#       -DHEPMC3_ENABLE_PYTHON=ON \
+#       -DHEPMC3_PYTHON_VERSIONS=3.X \
+#       -DHEPMC3_ENABLE_TEST=ON \
+#       -DCMAKE_INSTALL_PREFIX=/usr/local/venv \
+#       -S src \
+#       -B build && \
+#     cmake build -L && \
+#     cmake --build build --parallel "$(nproc --ignore=1)" && \
+#     cmake --build build --target install && \
+#     cd && \
+#     rm -rf /code
 
 # Install LHAPDF
 ARG LHAPDF_VERSION=6.5.3
@@ -77,20 +118,34 @@ RUN mkdir /code && \
     ./configure \
       --prefix=/usr/local/venv \
       --with-boost=/usr/local/venv && \
-    make -j$(nproc --ignore=12) && \
+    make -j$(nproc --ignore=1) && \
     make check && \
     make install && \
     rm -rf /code
 
-COPY requirements.txt /docker/requirements.txt
+COPY /docker/requirements.lock /docker/requirements.lock
 
-RUN python -m pip --no-cache-dir install --upgrade pip setuptools wheel && \
-    python -m pip --no-cache-dir install -r /docker/requirements.txt
+# Use Brett Cannon's recommendations for pip-secure-install to ensure environment
+# is reproducible and installed as securely as possible.
+# c.f. https://www.python.org/dev/peps/pep-0665/#secure-by-design
+# c.f. https://github.com/brettcannon/pip-secure-install
+# c.f. https://twitter.com/brettsky/status/1486137764315688961
+# exceptions need to be made for some libraries which only ship sdists, these
+# libraries are explicitly named in --no-binary to allow for installation from
+# sdist.
+RUN python -m pip --no-cache-dir install \
+        --upgrade \
+        --no-deps \
+        --require-hashes \
+        --requirement /docker/requirements.lock
 
 # Install FastJet
 # c.f. https://github.com/scikit-hep/fastjet/tree/d87d56bec13c76ef2911705140cd6d8cd9e1fc7a#build-dependencies
 # Use of fragile-shared-install is required by RIVET
 # TODO: See if --enable-allplugins is actually needed
+# Set CXXFLAGS to avoid use of -ffast-math
+# c.f. https://moyix.blogspot.com/2022/09/someones-been-messing-with-my-subnormals.html
+# c.f. https://gitlab.com/fastjet/siscone/-/blob/c2d0bdb645ee836874dc474985d1be50be0d548f/configure.ac#L26
 ARG FASTJET_VERSION=3.4.0
 ARG FASTJET_CONTRIB_VERSION=1.050
 RUN mkdir /code && \
@@ -100,10 +155,11 @@ RUN mkdir /code && \
     cd fastjet-${FASTJET_VERSION} && \
     ./configure --help && \
     export CXX=$(which g++) && \
+    export CXXFLAGS=" -Wall -O3 " && \
     ./configure \
         --prefix=/usr/local/venv \
         --enable-allcxxplugins && \
-    make -j$(nproc --ignore=12) && \
+    make -j$(nproc --ignore=1) && \
     make check && \
     make install && \
     if [[ "${TARGETARCH}" == "arm64" ]]; then \
@@ -119,6 +175,7 @@ RUN mkdir /code && \
         apt-get -y autoremove && \
         rm -rf /var/lib/apt/lists/* ; \
     fi && \
+    unset CXXFLAGS && \
     cd / && \
     rm -rf /code && \
     mkdir -p /code && \
@@ -133,8 +190,8 @@ RUN mkdir /code && \
         --fastjet-config=$(command -v fastjet-config) \
         --prefix=/usr/local/venv && \
     make \
-        -j$(nproc --ignore=12) \
-        fragile-shared-install && \
+        -j$(nproc --ignore=1) \
+        fragile-shared-install &> /docker/logs/fastjet.log.txt && \
     make check && \
     make install && \
     cd / && \
@@ -153,7 +210,7 @@ RUN mkdir /code && \
     ./configure --help && \
     ./configure \
         --prefix=/usr/local/venv && \
-    make -j$(nproc --ignore=12) && \
+    make -j$(nproc --ignore=1) && \
     make check && \
     make install && \
     cd / && \
@@ -179,7 +236,7 @@ RUN mkdir /code && \
     FASTJETPATH=/usr/local/venv \
     FJCONTRIBPATH=/usr/local/venv \
     YODAPATH=/usr/local/venv \
-    MAKE="make -j $(nproc --ignore=12)"\
+    MAKE="make -j $(nproc --ignore=1)"\
     ./rivet-bootstrap && \
     cd / && \
     rm -rf /code
@@ -194,7 +251,7 @@ RUN mkdir /code && \
     ./configure --help && \
     ./configure \
         --prefix=/usr/local/venv && \
-    make -j$(nproc --ignore=12) && \
+    make -j$(nproc --ignore=1) &> /docker/logs/gsl.log.txt && \
     make check && \
     make install && \
     cd / && \
@@ -217,7 +274,7 @@ RUN mkdir /code && \
         --with-rivet=/usr/local/venv \
         --with-fastjet=/usr/local/venv \
         --with-boost=/usr/local/venv && \
-    make -j$(nproc --ignore=12) && \
+    make -j$(nproc --ignore=1) &> /docker/logs/thepeg.log.txt && \
     make check && \
     make install && \
     cd / && \
@@ -235,9 +292,9 @@ RUN mkdir /code && \
     curl --silent --location --remote-name http://gosam.hepforge.org/gosam_installer.py && \
     python gosam_installer.py \
         --prefix=/usr/local/venv/ \
-        -j $(nproc --ignore=10) \
+        -j $(nproc --ignore=1) \
         --batch \
-        --verbose && \
+        --verbose &> /docker/logs/gosam.log.txt && \
     cd / && \
     rm -rf /code
 
@@ -252,6 +309,14 @@ RUN mkdir /code && \
     cd pythia${PYTHIA_VERSION} && \
     ./configure --help && \
     export PYTHON_MINOR_VERSION=${PYTHON_VERSION%.*} && \
+    if [[ "${TARGETARCH}" == "amd64" ]]; then \
+        export CXX_COMMON="-O2 -m64 -pedantic -W -Wall -Wshadow -fPIC -std=c++17"; \
+    elif [[ "${TARGETARCH}" == "arm64" ]]; then \
+        export CXX_COMMON="-O2 -pedantic -W -Wall -Wshadow -fPIC -std=c++17"; \
+    else \
+      echo "TARGETARCH ${TARGETARCH} not supported. Exiting now."; \
+      exit -1; \
+    fi && \
     ./configure \
       --prefix=/usr/local/venv \
       --arch=Linux \
@@ -267,21 +332,22 @@ RUN mkdir /code && \
       --with-python-bin=/usr/local/venv/bin/ \
       --with-python-lib=/usr/local/venv/lib/python${PYTHON_MINOR_VERSION} \
       --with-python-include=/usr/local/include/python${PYTHON_MINOR_VERSION} \
-      --cxx-common="-O2 -m64 -pedantic -W -Wall -Wshadow -fPIC -std=c++17" \
+      --cxx-common="${CXX_COMMON}" \
       --cxx-shared="-shared -std=c++17" && \
-    make --jobs $(nproc --ignore=12) && \
+    make --jobs "$(nproc --ignore=1)" &> /docker/logs/pythia8.log.txt && \
     make install && \
+    unset CXX_COMMON && \
     rm -rf /code
 
 # Install MadGraph5_aMC@NLO for Python 3 and PYTHIA 8 interface
-ARG MG_VERSION=3.4.1
+ARG MG_VERSION=3.4.2
 # Versions viewable on Illinois mirror
 # http://madgraph.physics.illinois.edu/Downloads/MG5aMC_PY8_interface/
 ARG MG5aMC_PY8_INTERFACE_VERSION=1.3
 RUN cd /usr/local/venv && \
     wget --quiet https://launchpad.net/mg5amcnlo/3.0/3.4.x/+download/MG5_aMC_v${MG_VERSION}.tar.gz && \
     mkdir -p /usr/local/venv/MG5_aMC && \
-    tar -xzvf MG5_aMC_v${MG_VERSION}.tar.gz --strip=1 --directory=MG5_aMC && \
+    tar -xzvf MG5_aMC_v${MG_VERSION}.tar.gz --strip=1 --directory=MG5_aMC &> /docker/logs/mg5.log.txt && \
     rm MG5_aMC_v${MG_VERSION}.tar.gz && \
     echo "Installing MG5aMC_PY8_interface" && \
     mkdir /code && \
@@ -333,11 +399,11 @@ RUN . /root/.bashrc && \
 #         --prefix=/usr/local/venv \
 #         --disable-autoflags && \
 #     cd lib-qcdloop1 && \
-#     make --jobs $(nproc --ignore=12) && \
+#     make --jobs $(nproc --ignore=1) && \
 #     make check && \
 #     make install && \
 #     cd ../lib-qd && \
-#     make --jobs $(nproc --ignore=12) && \
+#     make --jobs $(nproc --ignore=1) && \
 #     make check && \
 #     make install && \
 #     cd .. && \
@@ -345,7 +411,7 @@ RUN . /root/.bashrc && \
 #         --prefix=/usr/local/venv \
 #         --with-qcdloop1=/usr/local/venv \
 #         --with-qd=/usr/local/venv && \
-#     make --jobs $(nproc --ignore=12) && \
+#     make --jobs $(nproc --ignore=1) && \
 #     make check && \
 #     make install && \
 #     cd / && \
@@ -353,12 +419,15 @@ RUN . /root/.bashrc && \
 
 # Install OpenLoops
 # useless for real work given https://gitlab.com/openloops/OpenLoops/-/issues/2
+# Also can't use for aarch64 https://gitlab.com/openloops/OpenLoops/-/issues/8
 ARG OPENLOOPS_VERSION=2.1.2
-RUN cd /usr/local/venv/ && \
-    git clone https://gitlab.com/openloops/OpenLoops.git && \
-    cd OpenLoops && \
-    git checkout "OpenLoops-${OPENLOOPS_VERSION}" && \
-    ./scons
+RUN if [[ "${TARGETARCH}" == "amd64" ]]; then \
+        cd /usr/local/venv/ && \
+        git clone https://gitlab.com/openloops/OpenLoops.git && \
+        cd OpenLoops && \
+        git checkout "OpenLoops-${OPENLOOPS_VERSION}" && \
+        ./scons; \
+    fi
 
 # https://herwig.hepforge.org/tutorials/installation/prerequisite.html#decays
 
@@ -379,7 +448,7 @@ RUN cd /usr/local/venv/ && \
 #       --without-hepmc3 \
 #       --with-pythia8=/usr/local/venv \
 #       --with-lhapdf=/usr/local/venv && \
-#     make --jobs $(nproc --ignore=8) && \
+#     make --jobs $(nproc --ignore=1) && \
 #     make install && \
 #     cd / && \
 #     rm -rf /code
@@ -400,46 +469,158 @@ RUN lhapdf install CT14nlo && \
     export CXX=$(command -v g++) && \
     export PYTHON=$(command -v python) && \
     export am_cv_python_version=${PYTHON_VERSION%.*} && \
-    ./configure \
-      --prefix=/usr/local/venv \
-      --with-gsl=/usr/local/venv \
-      --with-thepeg=/usr/local/venv \
-      --with-boost=/usr/local/venv \
-      --with-gosam=/usr/local/venv \
-      --with-openloops=/usr/local/venv/OpenLoops \
-      --with-madgraph=/usr/local/venv/MG5_aMC \
-      --with-pythia=/usr/local/venv \
-      --with-fastjet=/usr/local/venv && \
-    make --jobs $(nproc --ignore=8) && \
-    make check && \
-    make install && \
+    if [[ "${TARGETARCH}" == "amd64" ]]; then \
+        ./configure \
+        --prefix=/usr/local/venv \
+        --with-gsl=/usr/local/venv \
+        --with-thepeg=/usr/local/venv \
+        --with-boost=/usr/local/venv \
+        --with-gosam=/usr/local/venv \
+        --with-openloops=/usr/local/venv/OpenLoops \
+        --with-madgraph=/usr/local/venv/MG5_aMC \
+        --with-pythia=/usr/local/venv \
+        --with-fastjet=/usr/local/venv && \
+        make --jobs $(nproc --ignore=1) && \
+        make check && \
+        make install; \
+    elif [[ "${TARGETARCH}" == "arm64" ]]; then \
+        echo "Skipping TARGETARCH ${TARGETARCH} given HERWIG7 build failures."; \
+    #     ./configure \
+    #     --prefix=/usr/local/venv \
+    #     --with-gsl=/usr/local/venv \
+    #     --with-thepeg=/usr/local/venv \
+    #     --with-boost=/usr/local/venv \
+    #     --with-gosam=/usr/local/venv \
+    #     --with-madgraph=/usr/local/venv/MG5_aMC \
+    #     --with-pythia=/usr/local/venv \
+    #     --with-fastjet=/usr/local/venv; \
+    else \
+      echo "TARGETARCH ${TARGETARCH} not supported. Exiting now."; \
+      exit -1; \
+    fi && \
     cd / && \
     rm -rf /code
 
-# TODO: Clean up and move around
-COPY jupyter_notebook_config.py /etc/jupyter/
-COPY jupyter_lab_config.py /etc/jupyter/
+# # TODO: Clean up and move around
+# COPY jupyter_notebook_config.py /etc/jupyter/
+# COPY jupyter_lab_config.py /etc/jupyter/
 
-# Make sure environment gets loaded regarldess of user
-# FIXME: Remove need for --allow-root
-RUN cp /root/.bashrc /etc/.bashrc && \
+# # Make sure environment gets loaded regarldess of user
+# # FIXME: Remove need for --allow-root
+# RUN cp /root/.bashrc /etc/.bashrc && \
+#     echo 'if [ -f /etc/.bashrc ]; then . /etc/.bashrc; fi' >> /etc/profile && \
+#     printf '#!/bin/bash\n\njupyter lab --no-browser --ip 0.0.0.0 --port 8888 --allow-root\n' > /docker/entrypoint.sh && \
+#     chmod 777 /docker/entrypoint.sh && \
+#     mkdir -p \
+#         /.local \
+#         /.jupyter \
+#         /.config \
+#         /.cache \
+#         /work && \
+#     chmod -R 777 \
+#         /.local \
+#         /.jupyter \
+#         /.config \
+#         /.cache \
+#         /work && \
+#     chmod -R 777 /usr/local/venv && \
+#     echo "SHELL=/bin/bash" >> /etc/environment
+
+FROM base
+
+USER root
+
+SHELL [ "/bin/bash", "-c" ]
+ENV PATH=/usr/local/venv/bin:"${PATH}"
+ENV PYTHONPATH=/usr/local/venv/lib:${PYTHONPATH}
+ENV LD_LIBRARY_PATH=/usr/local/venv/lib:${LD_LIBRARY_PATH}
+
+# Install any packages needed by default user
+RUN apt-get -qq update && \
+    apt-get -qq -y install --no-install-recommends \
+      gcc \
+      g++ \
+      gfortran \
+      make \
+      cmake \
+      vim \
+      zlib1g \
+      zlib1g-dev \
+      libbz2-dev \
+      rsync \
+      bash-completion \
+      wget \
+      curl \
+      ghostscript \
+      bc \
+      git && \
+    apt-get -y clean && \
+    apt-get -y autoremove && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user "moby" with uid 1000
+RUN adduser \
+      --shell /bin/bash \
+      --gecos "default user" \
+      --uid 1000 \
+      --disabled-password \
+      moby && \
+    chown -R moby /home/moby && \
+    mkdir -p /home/moby/work && \
+    chown -R moby /home/moby/work && \
+    mkdir /work && \
+    chown -R moby /work && \
+    mkdir /docker && \
+    chown -R moby /docker && \
+    printf '\nexport PATH=/usr/local/venv/bin:"${PATH}"\n' >> /root/.bashrc && \
+    printf '\nexport PATH=/usr/local/venv/MG5_aMC/bin:"${PATH}"\n' >> /root/.bashrc && \
+    cp /root/.bashrc /etc/.bashrc && \
     echo 'if [ -f /etc/.bashrc ]; then . /etc/.bashrc; fi' >> /etc/profile && \
-    printf '#!/bin/bash\n\njupyter lab --no-browser --ip 0.0.0.0 --port 8888 --allow-root\n' > /docker/entrypoint.sh && \
-    chmod 777 /docker/entrypoint.sh && \
-    mkdir -p \
-        /.local \
-        /.jupyter \
-        /.config \
-        /.cache \
-        /work && \
-    chmod -R 777 \
-        /.local \
-        /.jupyter \
-        /.config \
-        /.cache \
-        /work && \
-    chmod -R 777 /usr/local/venv && \
     echo "SHELL=/bin/bash" >> /etc/environment
+
+USER moby
+
+ENV USER ${USER}
+ENV HOME /home/moby
+WORKDIR ${HOME}/work
+
+COPY --chown=moby docker/jupyter_notebook_config.py /etc/jupyter/
+COPY --chown=moby docker/jupyter_lab_config.py /etc/jupyter/
+COPY --chown=moby docker/entrypoint.sh /docker/entrypoint.sh
+COPY --chown=moby docker/00-wurlitzer.py /docker/00-wurlitzer.py
+COPY --chown=moby docker/requirements.txt /docker/requirements.txt
+COPY --chown=moby docker/requirements.lock /docker/requirements.lock
+COPY --chown=moby pyproject.toml "${HOME}"
+
+COPY --from=builder --chown=moby /usr/local/venv /usr/local/venv/
+# As the virtual environment already exists from the base image any libraries
+# that already exist in the base image at a different version then the builder
+# (e.g. PyYAML) will have both versions in the virtual environment as the
+# result of the previous COPY.
+# To avoid any potential problems with this, reinstall from the lock file again
+# which will upgrade the libraries and remove the older version properly.
+USER root
+RUN python -m pip --no-cache-dir install \
+        --upgrade \
+        --no-deps \
+        --require-hashes \
+        --requirement /docker/requirements.lock && \
+    python -m pip --no-cache-dir install \
+        --upgrade \
+        pip \
+        setuptools \
+        wheel && \
+    chown -R moby /usr/local/venv/
+USER moby
+
+# Avoid https://gitlab.com/Pythia8/releases/-/issues/238
+RUN cp /docker/00-wurlitzer.py "$(ipython locate)/profile_default/startup/"
+
+# Use C.UTF-8 locale to avoid issues with ASCII encoding
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
+ENV PATH=${HOME}/.local/bin:${PATH}
 
 # Run with login shell to trigger /etc/profile
 # c.f. https://youngstone89.medium.com/unix-introduction-bash-startup-files-loading-order-562543ac12e9
