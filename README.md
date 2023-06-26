@@ -1,6 +1,8 @@
 # hep-simulation-stack
 Many HEP simulation tools in one image for both x86_64 and aarch64 machines.
 
+[![Docker Hub](https://img.shields.io/badge/DockerHub-blue?logo=Docker)](https://hub.docker.com/r/matthewfeickert/hep-simulation-stack/tags)
+
 ## Distributed Software
 
 * ROOT 6.28.04
@@ -24,6 +26,12 @@ Many HEP simulation tools in one image for both x86_64 and aarch64 machines.
 
 ## Usage
 
+As the image is mult-manifest, both x86_64 and aarch64 versions of the image are available under the same tag
+
+```
+docker pull matthewfeickert/hep-simulation-stack:les-houches-2023
+```
+
 ### Running as default 'moby' non-root user
 
 Run the container with configuration options
@@ -34,7 +42,7 @@ docker run \
     -ti \
     --publish 8888:8888 \
     --volume $PWD:/home/moby/work \
-    matthewfeickert/hep-simulation-stack:latest
+    matthewfeickert/hep-simulation-stack:les-houches-2023
 ```
 
 which will then launch Jupyter Lab with corresponding option defaults
@@ -53,5 +61,5 @@ docker run \
     -ti \
     --publish 8888:8888 \
     --volume $PWD:/home/moby/work \
-    matthewfeickert/hep-simulation-stack:latest:latest --
+    matthewfeickert/hep-simulation-stack:les-houches-2023 --
 ```
