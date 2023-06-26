@@ -1,5 +1,5 @@
 # hep-simulation-stack
-Many HEP simulation tools in one image
+Many HEP simulation tools in one image for both x86_64 and aarch64 machines.
 
 ## Distributed Software
 
@@ -15,8 +15,8 @@ Many HEP simulation tools in one image
 * GoSam
 * PYTHIA v8.306
 * MadGraph5_aMC@NLO v3.4.2
-* OpenLoops v2.1.2
-* HERWIG v7.2.2
+* OpenLoops v2.1.2 ([x86_64 only](https://gitlab.com/openloops/OpenLoops/-/issues/8))
+* HERWIG v7.2.2 (x86_64 only)
 * Awkward v2
 * matplotlib v3.7
 * JupyterLab v4

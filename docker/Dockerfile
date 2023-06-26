@@ -418,7 +418,7 @@ RUN . /root/.bashrc && \
 #     rm -rf /code
 
 # Install OpenLoops
-# useless for real work given https://gitlab.com/openloops/OpenLoops/-/issues/2
+# not useable for noraml work given https://gitlab.com/openloops/OpenLoops/-/issues/2
 # Also can't use for aarch64 https://gitlab.com/openloops/OpenLoops/-/issues/8
 ARG OPENLOOPS_VERSION=2.1.2
 RUN if [[ "${TARGETARCH}" == "amd64" ]]; then \
